@@ -88,8 +88,15 @@ input_data = {
     'address_length': address_length
 }
 
-# One-hot encoding for email domain
-input_data[f'email_domain_{email_domain}'] = 1 if email_domain else 0
+# One-hot encoding for email domain (match all possible email domains from the training dataset)
+possible_email_domains = ['gmail.com', 'yahoo.com', 'example.com']  # Add all possible email domains
+for domain in possible_email_domains:
+    input_data[f'email_domain_{domain}'] = 1 if email_domain == domain else 0
+
+# One-hot encoding for billing states (Add columns for all possible billing states)
+possible_states = ['AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA', 'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY']
+for state in possible_states:
+    input_data[f'billing_state_{state}'] = 1 if state in email_domain else 0  # Update logic as per the domain
 
 # Make prediction when the button is clicked
 if st.button('Predict'):
