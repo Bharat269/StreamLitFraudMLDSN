@@ -1,12 +1,18 @@
 import pandas as pd
 import numpy as np
-import re
 import pickle
+import re
 import streamlit as st
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import accuracy_score, classification_report
+
+# List of possible email domains and billing states based on training data
+possible_email_domains = ['example.net', 'example.org']
+possible_states = ['AL', 'AR', 'AZ', 'CA', 'CO', 'CT', 'DC', 'DE', 'FL', 'GA', 'HI', 'IA', 'IL', 'IN', 'KS', 'KY',
+                   'LA', 'MA', 'MD', 'ME', 'MI', 'MN', 'MO', 'MT', 'NC', 'ND', 'NH', 'NJ', 'NM', 'NV', 'NY', 'OK', 'OR',
+                   'PA', 'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VA', 'VT', 'WA', 'WI', 'WY']
 
 # Load and preprocess data
 @st.cache
@@ -88,26 +94,35 @@ input_data = {
     'address_length': address_length
 }
 
-# One-hot encoding for email domain (match all possible email domains from the training dataset)
-possible_email_domains = ['gmail.com', 'yahoo.com', 'example.com']  # Add all possible email domains
+# One-hot encoding for email domain (ensure all possible domains are represented)
 for domain in possible_email_domains:
     input_data[f'email_domain_{domain}'] = 1 if email_domain == domain else 0
 
-# One-hot encoding for billing states (Add columns for all possible billing states)
-possible_states = ['AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA', 'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY']
+# One-hot encoding for billing state (ensure all possible states are represented)
 for state in possible_states:
-    input_data[f'billing_state_{state}'] = 1 if state in email_domain else 0  # Update logic as per the domain
+    input_data[f'billing_state_{state}'] = 1 if state in email_domain else 0  # Adjust the logic if needed
+
+# Ensure the input has all the columns that were used during training
+# Load the model and ensure it expects the same columns
+with open('FraudModel.pkl', 'rb') as file:
+    model = pickle.load(file)
+
+# Ensure the input has all the required columns (i.e., match the model's feature set)
+input_df = pd.DataFrame([input_data])
+
+# Get the model's expected feature columns
+model_columns = model.feature_importances_
+
+# Add missing columns (with value 0) to match the model's training data
+for col in model_columns:
+    if col not in input_df.columns:
+        input_df[col] = 0
+
+# Reorder columns to match the model's expected order
+input_df = input_df[model_columns]
 
 # Make prediction when the button is clicked
 if st.button('Predict'):
-    # Ensure the input has all the columns from the training data
-    input_df = pd.DataFrame([input_data])
-
-    # Load model and predict
-    with open('FraudModel.pkl', 'rb') as file:
-        model = pickle.load(file)
-
-    # Prediction
     prediction = model.predict(input_df)
     prediction_prob = model.predict_proba(input_df)
 
