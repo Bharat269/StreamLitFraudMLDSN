@@ -14,7 +14,6 @@ def load_and_preprocess_data():
     # Read CSV and parse the timestamp column
     df = pd.read_csv('Fraud_Amazon.csv')  # Use the correct path to the CSV file
 
-
     # Handle Missing Data
     df = df.dropna(subset=["EVENT_LABEL"])  # Drop rows with missing labels
 
@@ -23,33 +22,25 @@ def load_and_preprocess_data():
     df["EVENT_LABEL"] = label_encoder.fit_transform(df["EVENT_LABEL"])
 
     # Feature Engineering
-    # Extract Features from EVENT_TIMESTAMP
     df["EVENT_TIMESTAMP"] = pd.to_datetime(df["EVENT_TIMESTAMP"])
     df["hour"] = df["EVENT_TIMESTAMP"].dt.hour
     df["day_of_week"] = df["EVENT_TIMESTAMP"].dt.dayofweek  # Monday = 0, Sunday = 6
     df["is_weekend"] = df["day_of_week"].apply(lambda x: 1 if x >= 5 else 0)
 
-    # Email Address Features
     df["email_domain"] = df["email_address"].apply(lambda x: x.split('@')[-1])  # Extract domain
     df["email_length"] = df["email_address"].apply(len)  # Length of email address
 
-    # User Agent Features
     df["is_mobile"] = df["user_agent"].apply(lambda x: 1 if "Mobile" in str(x) else 0)
     df["is_old_browser"] = df["user_agent"].apply(lambda x: 1 if re.search(r"Windows NT 5|Windows 98", str(x)) else 0)
 
-    # Phone Number Features
     df["phone_valid"] = df["phone_number"].apply(lambda x: 1 if re.match(r"^\(\d{3}\)\d{3}-\d{4}$", str(x)) else 0)
 
-    # IP Address Placeholder (Custom logic can include IP analysis or geo-location)
     df["ip_first_octet"] = df["ip_address"].apply(lambda x: int(x.split('.')[0]) if '.' in x else np.nan)
 
-    # Billing Address Features
     df["address_length"] = df["billing_address"].apply(len)  # Length of address
 
-    # Drop raw columns that were processed
     df = df.drop(["EVENT_TIMESTAMP", "user_agent", "email_address", "ip_address", "billing_address", "phone_number", "phone_valid"], axis=1)
 
-    # One-Hot Encode Categorical Columns
     df = pd.get_dummies(df, columns=["email_domain", "billing_state"], drop_first=True)
 
     return df
@@ -74,7 +65,7 @@ with open('FraudModel.pkl', 'wb') as file:
 # Streamlit UI
 st.title('Fraud Detection Model')
 
-# Input fields for prediction (you can customize this based on the available features in the dataset)
+# Input fields for prediction
 hour = st.number_input('Hour', min_value=0, max_value=23, step=1)
 day_of_week = st.number_input('Day of Week (0=Monday, 6=Sunday)', min_value=0, max_value=6, step=1)
 is_weekend = st.number_input('Is Weekend (1=Yes, 0=No)', min_value=0, max_value=1)
@@ -85,40 +76,34 @@ is_old_browser = st.number_input('Is Old Browser (1=Yes, 0=No)', min_value=0, ma
 ip_first_octet = st.number_input('IP First Octet', min_value=0, max_value=255)
 address_length = st.number_input('Billing Address Length', min_value=1, max_value=200)
 
+# Prepare the input data
+input_data = {
+    'hour': hour,
+    'day_of_week': day_of_week,
+    'is_weekend': is_weekend,
+    'email_length': email_length,
+    'is_mobile': is_mobile,
+    'is_old_browser': is_old_browser,
+    'ip_first_octet': ip_first_octet,
+    'address_length': address_length
+}
+
+# One-hot encoding for email domain
+input_data[f'email_domain_{email_domain}'] = 1 if email_domain else 0
+
 # Make prediction when the button is clicked
 if st.button('Predict'):
-    # Prepare the input data for prediction
-    input_data = {
-        'hour': hour,
-        'day_of_week': day_of_week,
-        'is_weekend': is_weekend,
-        'email_length': email_length,
-        'is_mobile': is_mobile,
-        'is_old_browser': is_old_browser,
-        'ip_first_octet': ip_first_octet,
-        'address_length': address_length
-    }
-    
-    # One-hot encode email_domain
-    email_domain_column = 'email_domain_' + email_domain if email_domain else ''
-    if email_domain_column:
-        input_data[email_domain_column] = 1  # Set this column to 1 if the domain matches, else 0
-    
-    # One-hot encode billing_state
-    # You would similarly need to handle billing_state here, depending on your app's input
-    # e.g., 'billing_state_CA' if the state is California
-    # Similar logic should be applied for all other categorical features in the model
-    
+    # Ensure the input has all the columns from the training data
     input_df = pd.DataFrame([input_data])
 
-    # Make prediction using the model
+    # Load model and predict
     with open('FraudModel.pkl', 'rb') as file:
         model = pickle.load(file)
 
+    # Prediction
     prediction = model.predict(input_df)
     prediction_prob = model.predict_proba(input_df)
 
-    # Display the result
     if prediction[0] == 1:
         st.write("The transaction is predicted to be fraudulent.")
     else:
