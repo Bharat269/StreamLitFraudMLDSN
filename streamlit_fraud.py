@@ -92,13 +92,22 @@ if st.button('Predict'):
         'hour': hour,
         'day_of_week': day_of_week,
         'is_weekend': is_weekend,
-        'email_domain_' + email_domain: 1,
         'email_length': email_length,
         'is_mobile': is_mobile,
         'is_old_browser': is_old_browser,
         'ip_first_octet': ip_first_octet,
         'address_length': address_length
     }
+    
+    # One-hot encode email_domain
+    email_domain_column = 'email_domain_' + email_domain if email_domain else ''
+    if email_domain_column:
+        input_data[email_domain_column] = 1  # Set this column to 1 if the domain matches, else 0
+    
+    # One-hot encode billing_state
+    # You would similarly need to handle billing_state here, depending on your app's input
+    # e.g., 'billing_state_CA' if the state is California
+    # Similar logic should be applied for all other categorical features in the model
     
     input_df = pd.DataFrame([input_data])
 
